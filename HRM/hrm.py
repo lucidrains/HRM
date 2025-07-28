@@ -162,6 +162,8 @@ class HRM(Module):
     ):
 
         act_losses = []
+        prev_q_continue = None
+
         return_loss = exists(labels)
 
         max_reasoning_steps = default(max_reasoning_steps, self.max_reasoning_steps)
@@ -230,6 +232,10 @@ class HRM(Module):
             for index in range(max_reasoning_steps * self.lowest_steps_per_reasoning_step - 1):
 
                 iteration = index + 1
+                is_reasoning_step_boundary = divisible_by(index, self.lowest_steps_per_reasoning_step)
+                num_reasoning_steps = index // self.lowest_steps_per_reasoning_step
+
+                # evaluate all networks depending on their period
 
                 for network_index, (network, hidden_combine, evaluate_network_at) in enumerate(zip(self.networks, self.hidden_combiners, self.evaluate_networks_at)):
 
@@ -240,10 +246,7 @@ class HRM(Module):
 
                 # adaptive computation time
 
-                is_reasoning_step_boundary = divisible_by(index, self.lowest_steps_per_reasoning_step)
-                num_reasoning_steps = index // self.lowest_steps_per_reasoning_step
-
-                if is_reasoning_step_boundary and num_reasoning_steps >= min_reasoning_steps:
+                if is_reasoning_step_boundary:
 
                     highest_hidden = hiddens[self.num_networks - 1]
 
@@ -258,6 +261,11 @@ class HRM(Module):
                         halt_target_loss = F.binary_cross_entropy(q_halt, is_correct.float())
 
                         act_losses.append(halt_target_loss)
+
+                        if exists(prev_q_continue):
+                            continue_target_loss = F.binary_cross_entropy(prev_q_continue, torch.maximum(q_continue, q_halt))
+
+                            act_losses.append(continue_target_loss)
 
         # 1-step gradient learning
 
