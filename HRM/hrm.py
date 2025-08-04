@@ -71,6 +71,7 @@ class HRM(Module):
     ):
         super().__init__()
         attn_layers_klass = Encoder if not causal else Decoder
+        self.causal = causal
 
         # input
 
@@ -133,8 +134,13 @@ class HRM(Module):
         labels = None,
         detach_hiddens = True,
         one_step_grad = True,
-        reasoning_steps = None
+        reasoning_steps = None,
+        return_autoreg_loss = False
     ):
+
+        if return_autoreg_loss:
+            assert self.causal
+            seq, labels = seq[:, :-1], seq[:, 1:]
 
         return_loss = exists(labels)
 

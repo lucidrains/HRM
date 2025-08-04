@@ -89,6 +89,7 @@ class HRM(Module):
     ):
         super().__init__()
         attn_layers_klass = Encoder if not causal else Decoder
+        self.causal = causal
 
         # input
 
@@ -169,11 +170,16 @@ class HRM(Module):
         detach_hiddens = True,
         one_step_grad = True,
         max_reasoning_steps = None,
-        adaptive_compute = None
+        adaptive_compute = None,
+        return_autoreg_loss = False
     ):
         batch, device = seq.shape[0], seq.device
 
         highest_hidden_index = self.num_networks - 1
+
+        if return_autoreg_loss:
+            assert self.causal
+            seq, labels = seq[:, :-1], seq[:, 1:]
 
         return_loss = exists(labels)
 
